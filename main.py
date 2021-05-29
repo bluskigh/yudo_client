@@ -78,7 +78,7 @@ class Application(tk.Frame):
                 elif option == 'Medium':
                     download = streams[len(streams)//2]
                 elif option == 'High':
-                    download = streams[len(streams)-1]
+                    download = streams.last()
             download.download(result.get('title'))
         messagebox.showinfo(title='Downloaded Songs', message=f"Succesfully downloaded songs from the playlist: {result.get('title')}")
 
