@@ -3,8 +3,6 @@ from pytube import YouTube
 import tkinter as tk 
 from tkinter import messagebox, ttk
 import requests
-import thread
-import time
 
 class Application(tk.Frame):
     def __init__(self, master=None):
@@ -24,8 +22,8 @@ class Application(tk.Frame):
         # authorization text 
         self.authorization_label = tk.Label(self.master, text='Authorization Text: ')
         self.authorization_label.grid(row=1, column=0, padx=(50, 0))
-        self.authorization_link = tk.Entry(self.master) 
-        self.authorization_link.grid(row=1, column=1)
+        self.authorization_entry = tk.Entry(self.master) 
+        self.authorization_entry.grid(row=1, column=1)
 
         self.type_label = tk.Label(self.master, text='Download Type: ')
         self.type_label.grid(row=2, column=0, pady=(5, 0))
@@ -54,15 +52,35 @@ class Application(tk.Frame):
         self.result_label.grid(row=5, column=0, sticky='W', padx=(25), pady=(10, 0))
 
     def start_download(self):
-        token = self.autohrization_entry.get()
-        if token.length == 0:
+        if len(self.link_entry.get()) == 0:
+            messagebox.showerror(title='Invalid Link', message='Missing link.')
+        token = self.authorization_entry.get()
+        if len(token) == 0:
             messagebox.showerror(title='Invalid Token', message='Missing token.')
         headers = {'Authorization': 'Bearer ' + token}
         result = requests.get(self.link_entry.get(), headers=headers, params={'data': True}).json()
-        for song in result.songs:
-            video = YouTube('https://youtu.be/'+song.id)
-            # downloading the lowest resoltuion video
-            video.streams.order_by('resolution').first().download()
+        if result is None:
+            messagebox.showerror(title='Invalid Request', message='Invalid Link/Token was given; request rejected.')
+        for song in result.get('songs'):
+            video = YouTube('https://youtu.be/'+song.get('video_id'))
+            # progressive = video/audio
+            # filter progressive False to get video only
+            # only_audio=True for only audio
+            download = None
+            if self.type_options.get() == 'Audio':
+                download = video.streams.filter(only_audio=True).first()
+            else:
+                streams = video.streams.filter(progressive=True).order_by('resolution')
+                option = self.quality_options.get()
+                download = None
+                if option == 'Low':
+                    download = streams.first()
+                elif option == 'Medium':
+                    download = streams[len(streams)//2]
+                elif option == 'High':
+                    download = streams[len(streams)-1]
+            download.download(result.get('title'))
+        messagebox.showinfo(title='Downloaded Songs', message=f"Succesfully downloaded songs from the playlist: {result.get('title')}")
 
 root = tk.Tk()
 app = Application(master=root)
