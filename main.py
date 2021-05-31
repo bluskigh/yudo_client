@@ -3,6 +3,7 @@ from pytube import YouTube
 import tkinter as tk 
 from tkinter import messagebox, ttk
 import requests
+import threading
 
 class Application(tk.Frame):
     def __init__(self, master=None):
@@ -43,6 +44,8 @@ class Application(tk.Frame):
         self.quality_options.current(0)
         self.quality_options.grid(row=3, column=1, padx=(0, 10))
 
+        self.thread = threading.Thread(target=self.start_download)
+
         # download button 
         self.download = tk.Button(self.master, text='Download', command=self.start_download)
         self.download.grid(row=4, column=0, padx=(10, 0), sticky='W', columnspan=2)
@@ -52,6 +55,7 @@ class Application(tk.Frame):
         self.result_label.grid(row=5, column=0, sticky='W', padx=(25), pady=(10, 0))
 
     def start_download(self):
+        self.thread.start()
         if len(self.link_entry.get()) == 0:
             messagebox.showerror(title='Invalid Link', message='Missing link.')
         token = self.authorization_entry.get()
@@ -61,6 +65,23 @@ class Application(tk.Frame):
         result = requests.get(self.link_entry.get(), headers=headers, params={'data': True}).json()
         if result is None:
             messagebox.showerror(title='Invalid Request', message='Invalid Link/Token was given; request rejected.')
+
+        # show all the songs that are going to be downlodaed
+        song_status = []
+        row = 6
+        for song in result.get('songs'):
+            tk.Label(text=f"{song.get('title')} | {song.get('duration')}").grid(row=row, column=1)
+            status_textvariable = tk.StringVar()
+            status = tk.Label(textvariable=status_textvariable)
+            status.grid(row=row, column=1)
+            # TODO: fix this line here, going to only store the textvariabel in the array 
+            song_status.append(status_textvariable)
+            row+=1
+        
+        return 
+
+        # reusing row as an index
+        row = 0
         for song in result.get('songs'):
             video = YouTube('https://youtu.be/'+song.get('video_id'))
             # progressive = video/audio
@@ -79,7 +100,12 @@ class Application(tk.Frame):
                     download = streams[len(streams)//2]
                 elif option == 'High':
                     download = streams.last()
+            # downloading into the a folder created using the title of the playlist
             download.download(result.get('title'))
+            # update the status label
+            song_status[row].set('Downloaded')
+            row+=1 
+
         messagebox.showinfo(title='Downloaded Songs', message=f"Succesfully downloaded songs from the playlist: {result.get('title')}")
 
 root = tk.Tk()
