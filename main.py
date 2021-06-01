@@ -65,7 +65,7 @@ class Application(tk.Frame):
         result = requests.get(self.link_entry.get(), headers=headers, params={'data': True}).json()
         if result is None:
             messagebox.showerror(title='Invalid Request', message='Invalid Link/Token was given; request rejected.')
-
+        print(result.get('songs'))
         # show all the songs that are going to be downlodaed
         song_status = []
         row = 6
