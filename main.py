@@ -1,10 +1,12 @@
 # in the future allow for entering youtube playlist thus add Playlist from pytube
+from os import listdir, getcwd
+from time import sleep
+import re
+import threading
+import requests
 from pytube import YouTube 
 import tkinter as tk 
 from tkinter import messagebox, ttk, font
-import requests
-import threading
-from time import sleep
 
 window = tk.Tk()
 window.title('YuDo Downloader')
@@ -54,6 +56,37 @@ process_label.grid(row=5, column=1)
 
 song_status = []
 
+def safe_filename(s, max_length = 255):
+    """credit: https://github.com/pytube/pytube/blob/master/pytube/helpers.py"""
+    # Characters in range 0-31 (0x00-0x1F) are not allowed in ntfs filenames.
+    ntfs_characters = [chr(i) for i in range(0, 31)]
+    characters = [
+        r'"',
+        r"\#",
+        r"\$",
+        r"\%",
+        r"'",
+        r"\*",
+        r"\,",
+        r"\.",
+        r"\/",
+        r"\:",
+        r'"',
+        r"\;",
+        r"\<",
+        r"\>",
+        r"\?",
+        r"\\",
+        r"\^",
+        r"\|",
+        r"\~",
+        r"\\\\",
+    ]
+    pattern = "|".join(ntfs_characters + characters)
+    regex = re.compile(pattern, re.UNICODE)
+    filename = regex.sub("", s)
+    return filename[:max_length].rsplit(" ", 0)[0] + '.mp4'
+
 def start_download():
     process_variable.set('Downloading...')
     if len(link_entry.get()) == 0:
@@ -71,47 +104,60 @@ def start_download():
         return
 
     songs = result.get('songs')
-    max_tries = 25 
-    tries = 0
+    # attempting to get all existing songs that have downloaded
+    try:
+        existing_songs = listdir(getcwd()+f'/{result.get("title")}')
+        print(existing_songs)
+    except FileNotFoundError:
+        print('Folder not found')
+        # playlist has not been downloaded to users computer
+        pass
     row = 6
     # reusing row as an index
     for song in songs:
         download = None
+        status_textvariable = tk.StringVar()
+        temp = tk.Label(font=('Noto Sans Display', '13'), text=f"{song.get('title')} | {song.get('duration')}")
+        status = tk.Label(font=font_medium, textvariable=status_textvariable)
         try:
-            video = YouTube('https://www.youtu.be/'+song.get('video_id'))
-            print(f'Going to download {video.title}')
-            temp = tk.Label(font=('Noto Sans Display', '13'), text=f"{song.get('title')} | {song.get('duration')}")
             temp.grid(row=row, column=0)
-            status_textvariable = tk.StringVar()
-            status = tk.Label(font=font_medium, textvariable=status_textvariable)
             status.grid(row=row, column=1)
-            # progressive = video/audio
-            # filter progressive False to get video only
-            # only_audio=True for only audio
-            if type_options.get() == 'Audio':
-                download = video.streams.filter(only_audio=True).first()
+            if safe_filename(song.get('title')) in existing_songs:
+                print('Already downloaded, ', song.get('title'))
+                status_textvariable.set('Already Downloaded')
             else:
-                streams = video.streams.filter(progressive=True).order_by('resolution')
-                option = quality_options.get()
-                if option == 'Low':
-                    download = streams.first()
-                elif option == 'Medium':
-                    download = streams[len(streams)//2]
-                elif option == 'High':
-                    download = streams.last()
-            # downloading into the a folder created using the title of the playlist
-            download.download(result.get('title'))
-            status_textvariable.set('Downloaded')
+                video = YouTube('https://www.youtu.be/'+song.get('video_id'))
+                print(f'Going to download {video.title}')
+                # progressive = video/audio
+                # filter progressive False to get video only
+                # only_audio=True for only audio
+                if type_options.get() == 'Audio':
+                    download = video.streams.filter(only_audio=True).first()
+                else:
+                    streams = video.streams.filter(progressive=True).order_by('resolution')
+                    option = quality_options.get()
+                    if option == 'Low':
+                        download = streams.first()
+                    elif option == 'Medium':
+                        download = streams[len(streams)//2]
+                    elif option == 'High':
+                        download = streams.last()
+                # downloading into the a folder created using the title of the playlist
+                download.download(result.get('title'))
+                status_textvariable.set('Downloaded')
         except Exception as e:
+            print(e)
             print(f"Failed to download, attempting again.")
             try:
-                video = YouTube('https://youtu.be/'+song.get('video_id'))
+                result = f'https://youtube.com/watch?v={song.get("video_id")}'
+                video = YouTube(result)
                 video.streams.filter(only_audio=True).first().download(result.get('title'))
                 status_textvariable.set('Downloaded')
             except:
                 status_textvariable.set('Could Not Download')
         song_status.append([temp, status, status_textvariable])
         row+=1
+    print('done')
 
 # download button 
 download = tk.Button(window, text='Download', command=start_download)
