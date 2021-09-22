@@ -105,6 +105,7 @@ def start_download():
 
     songs = result.get('songs')
     # attempting to get all existing songs that have downloaded
+    existing_songs = []
     try:
         existing_songs = listdir(getcwd()+f'/{result.get("title")}')
         print(existing_songs)
@@ -119,42 +120,35 @@ def start_download():
         status_textvariable = tk.StringVar()
         temp = tk.Label(font=('Noto Sans Display', '13'), text=f"{song.get('title')} | {song.get('duration')}")
         status = tk.Label(font=font_medium, textvariable=status_textvariable)
-        try:
-            temp.grid(row=row, column=0)
-            status.grid(row=row, column=1)
-            if safe_filename(song.get('title')) in existing_songs:
-                print('Already downloaded, ', song.get('title'))
-                status_textvariable.set('Already Downloaded')
-            else:
-                video = YouTube('https://www.youtu.be/'+song.get('video_id'))
+        temp.grid(row=row, column=0)
+        status.grid(row=row, column=1)
+        if safe_filename(song.get('title')) in existing_songs:
+            print('Already downloaded, ', song.get('title'))
+            status_textvariable.set('Already Downloaded')
+        else:
+            try: 
+                video = YouTube('https://youtu.be/'+song.get('video_id'))
                 print(f'Going to download {video.title}')
-                # progressive = video/audio
-                # filter progressive False to get video only
-                # only_audio=True for only audio
-                if type_options.get() == 'Audio':
-                    download = video.streams.filter(only_audio=True).first()
-                else:
-                    streams = video.streams.filter(progressive=True).order_by('resolution')
-                    option = quality_options.get()
-                    if option == 'Low':
-                        download = streams.first()
-                    elif option == 'Medium':
-                        download = streams[len(streams)//2]
-                    elif option == 'High':
-                        download = streams.last()
-                # downloading into the a folder created using the title of the playlist
-                download.download(result.get('title'))
-                status_textvariable.set('Downloaded')
-        except Exception as e:
-            print(e)
-            print(f"Failed to download, attempting again.")
-            try:
-                result = f'https://youtube.com/watch?v={song.get("video_id")}'
-                video = YouTube(result)
-                video.streams.filter(only_audio=True).first().download(result.get('title'))
-                status_textvariable.set('Downloaded')
             except:
-                status_textvariable.set('Could Not Download')
+                # video is unavailable now
+                continue
+            # progressive = video/audio
+            # filter progressive False to get video only
+            # only_audio=True for only audio
+            if type_options.get() == 'Audio':
+                download = video.streams.filter(only_audio=True).first()
+            else:
+                streams = video.streams.filter(progressive=True).order_by('resolution')
+                option = quality_options.get()
+                if option == 'Low':
+                    download = streams.first()
+                elif option == 'Medium':
+                    download = streams[len(streams)//2]
+                elif option == 'High':
+                    download = streams.last()
+            # downloading into the a folder created using the title of the playlist
+            download.download(result.get('title'))
+            status_textvariable.set('Downloaded')
         song_status.append([temp, status, status_textvariable])
         row+=1
     print('done')
