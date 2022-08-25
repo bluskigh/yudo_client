@@ -17,3 +17,10 @@ To start the application run:
 ```
 python3 main.py
 ```
+## Errors
+### PyTube
+Usually if the application is operating incorrectly it is because of the utilization of a deprecated version of PyTube. So to fix this issue run this command:
+'''
+pip3 install --upgrade pytube
+'''
+I will try to update the the requirements.txt to fit recent releases.
